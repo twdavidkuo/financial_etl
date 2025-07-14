@@ -1,0 +1,3 @@
+{"timestamp":"2025-07-14T21:23:23.631556","level":"info","event":"Filling up the DagBag from /Users/kuot/Documents/Financial_ETL/venv/lib/python3.10/site-packages/airflow/example_dags/example_dynamic_task_mapping.py","logger":"airflow.models.dagbag.DagBag"}
+{"timestamp":"2025-07-14T21:23:53.956809","level":"info","event":"Filling up the DagBag from /Users/kuot/Documents/Financial_ETL/venv/lib/python3.10/site-packages/airflow/example_dags/example_dynamic_task_mapping.py","logger":"airflow.models.dagbag.DagBag"}
+{"timestamp":"2025-07-14T21:24:24.988203","level":"info","event":"Filling up the DagBag from /Users/kuot/Documents/Financial_ETL/venv/lib/python3.10/site-packages/airflow/example_dags/example_dynamic_task_mapping.py","logger":"airflow.models.dagbag.DagBag"}
