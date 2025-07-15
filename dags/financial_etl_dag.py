@@ -1,21 +1,13 @@
 import os
 from airflow.sdk import dag, task
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 from edgar import *
 import json
 import logging
 import pendulum
+from airflow.models import DagRun
 
-
-
-@task 
-def find_tickers():
-    """
-    This task is used to find the tickers of the companies that have filed financial statements with the SEC.
-    """
-    companies = pd.read_csv("data/sp500_companies.csv")
-    return companies["Symbol"].tolist()
 
     
 def transform_statement(statement):
@@ -132,6 +124,86 @@ def extract_financial_facts(ticker, form="10-K", base_dir="data", filing_date="2
             except Exception as e:
                 print(f"Skipping {concept} for {ticker} {filing_date_str}: {e}")
 
+
+@task
+def find_tickers():
+    """
+    This task is used to find the tickers of the companies that have filed financial statements with the SEC.
+    """
+    companies = pd.read_csv(f"{os.getcwd()}/data/sp500_companies.csv")
+    return companies["Symbol"].tolist()
+
+@task
+def get_filing_data(base_dir: str = "data"):
+    """
+    This task is used to get the filing date based on the most recent DAG run.
+    It manages an extraction log file to track the last execution date.
+    """
+    import json
+    import os
+    from datetime import datetime
+    
+    log_file_path = os.path.join(base_dir, "extraction_log.json")
+    current_date = datetime.now().strftime("%Y-%m-%d")
+    
+    # 1. If extraction_log.json doesn't exist, create it and return default range
+    if not os.path.exists(log_file_path):
+        log_data = {
+            "last_execution_date": current_date,
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        with open(log_file_path, 'w') as f:
+            json.dump(log_data, f, indent=2)
+        
+        print(f"Created extraction log file: {log_file_path}")
+        return {"filing_date_range": f"2015-01-01:{current_date}"}
+    
+    # 2. If extraction_log.json exists, read it and update execution date
+    with open(log_file_path, "r") as f:
+        log_data = json.load(f)
+    
+    previous_execution_date = log_data["last_execution_date"]
+    
+    # Update the execution date to current date
+    log_data["last_execution_date"] = current_date
+    log_data["updated_at"] = datetime.now().isoformat()
+    
+    # Write updated log
+    with open(log_file_path, 'w') as f:
+        json.dump(log_data, f, indent=2)
+    
+    print(f"Updated extraction log file: {log_file_path}")
+    return {"filing_date_range": f"{previous_execution_date}:{current_date}"}
+
+
+@task
+def extract_financial_data(filing_data_info, tickers):
+    """
+    This task is used to extract the financial data from the SEC's website.
+    """
+    import os
+    import re
+    
+    identity = os.getenv("AIRFLOW__EMAIL__FROM_EMAIL")
+    if not identity:
+        raise ValueError("AIRFLOW__EMAIL__FROM_EMAIL environment variable is not set. Please set it with your identity (e.g., 'John Doe <johndoe@example.com>')")
+    
+    # Remove angle brackets from email format
+    identity = re.sub(r'<(.+?)>', r'\1', identity)
+    
+    set_identity(identity)
+    
+    base_dir = f"{os.getcwd()}/data"
+    
+    for ticker in tickers:
+        extract_financial_statements(ticker, form="10-K", base_dir=base_dir, filing_date=filing_data_info["filing_date_range"])
+        extract_financial_facts(ticker, form="10-K", base_dir=base_dir, filing_date=filing_data_info["filing_date_range"])
+        extract_financial_statements(ticker, form="10-Q", base_dir=base_dir, filing_date=filing_data_info["filing_date_range"])
+        extract_financial_facts(ticker, form="10-Q", base_dir=base_dir, filing_date=filing_data_info["filing_date_range"])
+
+
 @dag(
     dag_id="financial_data_extraction",
     schedule="@daily",
@@ -141,5 +213,7 @@ def extract_financial_facts(ticker, form="10-K", base_dir="data", filing_date="2
 )
 def financial_data_extraction():
     tickers = find_tickers()
-
+    filing_data_info = get_filing_data()
+    extract_financial_data(filing_data_info, ['ABBV']);
+    
 financial_data_extraction()
