@@ -1,19 +1,6 @@
-edgartools>=4.3.1
-pandas>=2.0.0
+edgartools
+pandas>=1.5.0
 requests>=2.28.0
-python-dotenv>=0.19.0
-beautifulsoup4>=4.10.0
-httpx>=0.25.0
-humanize>=4.0.0
-jinja2>=3.1.0
-lxml>=4.4
-orjson>=3.6.0
-pyarrow>=17.0.0
-pydantic>=2.0.0
-rank-bm25>=0.2.1
-rapidfuzz>=3.5.0
-rich>=13.8.0
-stamina>=24.2.0
+python-dotenv>=0.19.0 
 
-# Airflow installation (run this command instead of pip install -r requirements.txt):
 # pip install "apache-airflow[celery]==3.0.2" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.2/constraints-3.9.txt"

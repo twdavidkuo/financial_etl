@@ -37,8 +37,14 @@ Financial_ETL/
 │           └── revenue/
 ├── models/
 │   └── staging/                  # Staging area for processed data
+├── airflow/                      # Airflow home directory
+├── logs/                         # Airflow logs
+├── venv/                         # Python virtual environment
 ├── requirements.txt              # Python dependencies
-├── airflow.cfg                   # Airflow configuration
+├── setup_env.py                  # Environment setup script
+├── setup_env.sh                  # Shell setup script
+├── extraction.env                # Environment variables configuration
+├── sp500_companies.csv           # S&P 500 companies list
 └── README.md                     # This file
 ```
 
@@ -72,7 +78,18 @@ Financial_ETL/
    pip install "apache-airflow[celery]==3.0.2" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.0.2/constraints-3.9.txt"
    ```
 
-5. **Set up Airflow**:
+5. **Set up environment**:
+   ```bash
+   # Run the environment setup script
+   python setup_env.py
+   ```
+   
+   This script will:
+   - Load environment variables from `extraction.env`
+   - Create the necessary data directory structure
+   - Set up ticker-specific directories for all S&P 500 companies
+
+6. **Set up Airflow**:
    ```bash
    airflow db init
    airflow users create \
@@ -88,27 +105,36 @@ Financial_ETL/
 
 ### Environment Variables
 
-Set the following environment variable before running the pipeline:
+The project uses `extraction.env` to manage all environment variables. This file contains:
 
 ```bash
-export AIRFLOW__EMAIL__FROM_EMAIL="Your Name <your.email@example.com>"
+# Airflow Configuration
+AIRFLOW_HOME=./airflow
+AIRFLOW__CORE__DAGS_FOLDER=./dags
+AIRFLOW__EMAIL__FROM_EMAIL=David Kuo <davidkuotwk@gmail.com>
+
+# Data Directory Configuration
+OUTPUT_DATA_DIR=./data
 ```
 
-**Important**: This identity is required for SEC EDGAR API access and must be set to avoid pipeline failures. The pipeline will automatically remove the angle brackets from the email format.
+**Important**: Update the `AIRFLOW__EMAIL__FROM_EMAIL` in `extraction.env` with your identity for SEC EDGAR API access. The pipeline will automatically remove the angle brackets from the email format.
+
+### Environment Setup
+
+The `setup_env.py` script automatically:
+- Loads environment variables from `extraction.env`
+- Creates the data directory structure
+- Sets up ticker-specific directories for all S&P 500 companies
+- Provides fallback values if environment variables are not set
 
 ### Airflow Configuration
 
-1. **Set Airflow home** (optional):
-   ```bash
-   export AIRFLOW_HOME=$(pwd)
-   ```
-
-2. **Start Airflow webserver**:
+1. **Start Airflow webserver**:
    ```bash
    airflow webserver --port 8080
    ```
 
-3. **Start Airflow scheduler**:
+2. **Start Airflow scheduler**:
    ```bash
    airflow scheduler
    ```
@@ -117,17 +143,22 @@ export AIRFLOW__EMAIL__FROM_EMAIL="Your Name <your.email@example.com>"
 
 ### Running the Pipeline
 
-1. **Start Airflow services** (if not already running):
+1. **Set up the environment** (if not already done):
+   ```bash
+   python setup_env.py
+   ```
+
+2. **Start Airflow services** (if not already running):
    ```bash
    airflow webserver --port 8080 &
    airflow scheduler &
    ```
 
-2. **Access Airflow UI**: Open http://localhost:8080 in your browser
+3. **Access Airflow UI**: Open http://localhost:8080 in your browser
 
-3. **Enable the DAG**: In the Airflow UI, find `financial_data_extraction` and toggle it on
+4. **Enable the DAG**: In the Airflow UI, find `financial_data_extraction` and toggle it on
 
-4. **Trigger manual run** (optional): Click "Trigger DAG" to run immediately
+5. **Trigger manual run** (optional): Click "Trigger DAG" to run immediately
 
 ### Pipeline Components
 
@@ -231,21 +262,27 @@ The pipeline includes comprehensive error handling:
    ```
    ValueError: AIRFLOW__EMAIL__FROM_EMAIL environment variable is not set
    ```
-   **Solution**: Set the environment variable with your identity in the format "Your Name <your.email@example.com>"
+   **Solution**: Update the `AIRFLOW__EMAIL__FROM_EMAIL` value in `extraction.env` with your identity in the format "Your Name <your.email@example.com>"
 
-2. **Airflow Connection Issues**:
+2. **Environment Setup Issues**:
+   ```
+   Error: extraction.env not found
+   ```
+   **Solution**: Ensure `extraction.env` exists in the project root and contains the required environment variables
+
+3. **Airflow Connection Issues**:
    **Solution**: Ensure Airflow services are running and accessible
 
-3. **SEC API Rate Limits**:
+4. **SEC API Rate Limits**:
    **Solution**: The pipeline includes built-in rate limiting and retry logic
 
-4. **Missing Data**:
+5. **Missing Data**:
    **Solution**: Check Airflow logs for specific error messages
 
 ### Debug Mode
-Enable debug logging by setting:
+Enable debug logging by adding to `extraction.env`:
 ```bash
-export AIRFLOW__LOGGING__LOGGING_LEVEL=DEBUG
+AIRFLOW__LOGGING__LOGGING_LEVEL=DEBUG
 ```
 
 ## Contributing
@@ -268,6 +305,12 @@ For issues and questions:
 - Open an issue in the repository
 
 ## Changelog
+
+### Version 1.1.0
+- Added environment variable management with `extraction.env`
+- Created `setup_env.py` script for automated environment setup
+- Improved project structure and documentation
+- Enhanced configuration management
 
 ### Version 1.0.0
 - Initial release
