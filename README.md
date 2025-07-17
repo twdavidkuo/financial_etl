@@ -16,7 +16,7 @@ A comprehensive Apache Airflow-based ETL pipeline for extracting financial data 
 ```
 Financial_ETL/
 ├── dags/
-│   └── financial_etl_dag.py      # Main Airflow DAG
+│   └── extraction_dag.py         # Main Airflow DAG for financial data extraction
 ├── data/
 │   ├── sp500_companies.csv       # S&P 500 company list
 │   ├── extraction_log.json       # Execution tracking log
@@ -42,7 +42,6 @@ Financial_ETL/
 ├── venv/                         # Python virtual environment
 ├── requirements.txt              # Python dependencies
 ├── setup_env.py                  # Environment setup script
-├── setup_env.sh                  # Shell setup script
 ├── extraction.env                # Environment variables configuration
 ├── sp500_companies.csv           # S&P 500 companies list
 └── README.md                     # This file
@@ -109,15 +108,26 @@ The project uses `extraction.env` to manage all environment variables. This file
 
 ```bash
 # Airflow Configuration
-AIRFLOW_HOME=./airflow
-AIRFLOW__CORE__DAGS_FOLDER=./dags
+AIRFLOW_HOME=/Users/kuot/Documents/Financial_ETL/airflow
+AIRFLOW__CORE__DAGS_FOLDER=/Users/kuot/Documents/Financial_ETL/dags
 AIRFLOW__EMAIL__FROM_EMAIL=David Kuo <davidkuotwk@gmail.com>
 
 # Data Directory Configuration
 OUTPUT_DATA_DIR=./data
 ```
 
-**Important**: Update the `AIRFLOW__EMAIL__FROM_EMAIL` in `extraction.env` with your identity for SEC EDGAR API access. The pipeline will automatically remove the angle brackets from the email format.
+**Important**: 
+1. Update the `AIRFLOW_HOME` and `AIRFLOW__CORE__DAGS_FOLDER` paths in `extraction.env` to match your system
+2. Update the `AIRFLOW__EMAIL__FROM_EMAIL` with your identity for SEC EDGAR API access
+3. Set the `sec_identity` Airflow Variable with your identity (e.g., 'John Doe johndoe@example.com')
+
+### Airflow Variables
+
+Set the required Airflow variable for SEC API access:
+
+```bash
+airflow variables set sec_identity "Your Name your.email@example.com"
+```
 
 ### Environment Setup
 
@@ -164,10 +174,9 @@ The `setup_env.py` script automatically:
 
 The pipeline consists of several tasks:
 
-1. **`find_tickers`**: Reads S&P 500 company list from CSV
+1. **`get_tickers`**: Reads S&P 500 company list from CSV
 2. **`get_filing_data`**: Manages extraction log and determines filing date range
-3. **`configure_identity`**: Sets user identity for SEC API access
-4. **`extract_financial_data`**: Downloads and processes financial data
+3. **`extract_financial_data`**: Downloads and processes financial data
 
 ### Data Extraction
 
@@ -216,6 +225,17 @@ data/
 #### Fact Files
 - **Single CSV per filing date**: Contains concept, value, and metadata
 
+## Dependencies
+
+### Core Dependencies
+- `edgartools`: SEC EDGAR data extraction library
+- `pandas>=1.5.0`: Data manipulation and analysis
+- `requests>=2.28.0`: HTTP library for API calls
+- `python-dotenv>=0.19.0`: Environment variable management
+
+### Airflow Dependencies
+- `apache-airflow[celery]==3.0.2`: Workflow orchestration platform
+
 ## Monitoring and Logging
 
 ### Extraction Log
@@ -238,6 +258,26 @@ The pipeline includes comprehensive error handling:
 - **Data Processing**: Skips problematic filings while continuing with others
 - **File System**: Handles missing directories and file permission issues
 
+## Current Configuration
+
+### DAG Configuration
+- **DAG ID**: `financial_data_extraction`
+- **Schedule**: `@daily` (runs every day)
+- **Start Date**: January 1, 2025
+- **Catchup**: Disabled
+- **Tags**: `["extraction_dag"]`
+
+### Current Test Configuration
+The DAG is currently configured to process only AAPL for testing purposes. To process all S&P 500 companies, update the last line in `extraction_dag.py`:
+
+```python
+# Current (test mode):
+extract_financial_data(filing_data_info, ['AAPL']);
+
+# For full S&P 500 processing:
+extract_financial_data(filing_data_info, tickers);
+```
+
 ## Customization
 
 ### Adding New Companies
@@ -249,72 +289,8 @@ The pipeline includes comprehensive error handling:
 2. Add new concepts to the extraction list
 3. Update directory structure as needed
 
-### Changing Date Ranges
-1. Modify `get_filing_data()` function
-2. Adjust default start date or date range logic
-3. Update extraction log handling if needed
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Identity Not Set**:
-   ```
-   ValueError: AIRFLOW__EMAIL__FROM_EMAIL environment variable is not set
-   ```
-   **Solution**: Update the `AIRFLOW__EMAIL__FROM_EMAIL` value in `extraction.env` with your identity in the format "Your Name <your.email@example.com>"
-
-2. **Environment Setup Issues**:
-   ```
-   Error: extraction.env not found
-   ```
-   **Solution**: Ensure `extraction.env` exists in the project root and contains the required environment variables
-
-3. **Airflow Connection Issues**:
-   **Solution**: Ensure Airflow services are running and accessible
-
-4. **SEC API Rate Limits**:
-   **Solution**: The pipeline includes built-in rate limiting and retry logic
-
-5. **Missing Data**:
-   **Solution**: Check Airflow logs for specific error messages
-
-### Debug Mode
-Enable debug logging by adding to `extraction.env`:
-```bash
-AIRFLOW__LOGGING__LOGGING_LEVEL=DEBUG
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-[Add your license information here]
-
-## Support
-
-For issues and questions:
-- Check the troubleshooting section
-- Review Airflow logs
-- Open an issue in the repository
-
-## Changelog
-
-### Version 1.1.0
-- Added environment variable management with `extraction.env`
-- Created `setup_env.py` script for automated environment setup
-- Improved project structure and documentation
-- Enhanced configuration management
-
-### Version 1.0.0
-- Initial release
-- S&P 500 financial data extraction
-- 10-K and 10-Q filing support
-- Incremental processing with extraction logging
-- Comprehensive error handling 
+### Modifying Extraction Date Range
+The pipeline uses incremental processing based on the last execution date. To modify the date range:
+1. Edit the `extraction_log.json` file
+2. Update the `last_execution_date` field
+3. Or delete the file to start fresh from 2015-01-01 

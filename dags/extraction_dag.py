@@ -185,7 +185,7 @@ def extract_financial_data(filing_data_info, tickers):
     import re
     import json
     from datetime import datetime
-    from airflow.sdk import Variable
+    from airflow.models import Variable
     
     identity = Variable.get("sec_identity")
     if not identity:
@@ -240,7 +240,7 @@ def extract_financial_data(filing_data_info, tickers):
     schedule="@daily",
     start_date=datetime(2025, 1, 1),
     catchup=False,
-    tags=["data_extraction"],
+    tags=["extraction_dag"],
 )
 def financial_data_extraction():
     tickers = get_tickers()
