@@ -47,61 +47,49 @@ def transform_statement(statement):
 
     return pivot1, pivot2
 
-def extract_financial_statements(ticker, form="10-K", base_dir=f"{os.getcwd()}/data", filing_date="2015-01-01:2025-12-31"):
+def extract_financial_statements(ticker, form="10-K", base_s3_dir="s3://sec-etl-raw-data", filing_date="2015-01-01:2025-12-31"):
     """
-    This task is used to find the last execution date of the financial data extraction so that we can 
-    update the filling date of the next execution.  For a given ticker and form type ("10-K" or "10-Q"), download all filings in the date range,
-    parse balance_sheet, income_statement, statement_of_equity,
-    transform and save them as CSVs in the correct directory structure.
+    Extract financial statements and write them directly to S3 using pandas' S3 support.
     """
-    # Map form to directory name
-    form_dir = form.lower().replace("-", "")  # "10-K" -> "10k", "10-Q" -> "10q"
+    import pandas as pd
+    from urllib.parse import urljoin
+
+    # Ensure s3fs is installed: pip install s3fs
+    form_dir = form.lower().replace("-", "")
     company = Company(ticker)
     reports = company.get_filings(filing_date=filing_date, form=[form])
     
     for report in reports:
         xbrl = XBRL.from_filing(report)
-        filing_date_str = report.filing_date  # e.g. '2023-09-30'
-        
-        for statement_name in [
-            "balance_sheet",
-            "income_statement",
-            "statement_of_equity"
-        ]:
+        filing_date_str = report.filing_date
+
+        for statement_name in ["balance_sheet", "income_statement", "statement_of_equity"]:
             try:
                 statement = getattr(xbrl.statements, statement_name)()
                 df = statement.to_dataframe()
                 concept_df, label_df = transform_statement(df)
-                
+
                 for kind, out_df in [("concept", concept_df), ("label", label_df)]:
-                    out_dir = os.path.join(
-                        base_dir, ticker, form_dir, statement_name
-                    )
-                    os.makedirs(out_dir, exist_ok=True)
-                    out_path = os.path.join(
-                        out_dir, f"{filing_date_str}_{kind}.csv"
-                    )
-                    out_df.to_csv(out_path, index=False)
-                    print(f"Saved: {out_path}")
+                    s3_path = f"{base_s3_dir}/{ticker}/{form_dir}/{statement_name}/{filing_date_str}_{kind}.csv"
+                    out_df.to_csv(s3_path, index=False)
+                    print(f"Saved to {s3_path}")
+
             except Exception as e:
                 print(f"Skipping {statement_name} for {ticker} {filing_date_str}: {e}")
 
-    
 
-def extract_financial_facts(ticker, form="10-K", base_dir=f"{os.getcwd()}/data", filing_date="2015-01-01:2025-12-31"):
+def extract_financial_facts(ticker, form="10-K", base_s3_dir="s3://sec-etl-raw-data", filing_date="2015-01-01:2025-12-31"):
     """
-    This task is used to extract the financial facts (basic/diluted EPS, revenue, net income, etc.) from the SEC's website.
-    For a given ticker and form type, extract EarningsPerShareBasic, EarningsPerShareDiluted, and Revenue
-    from all filings and save as CSVs in the correct directory structure.
+    Extract financial facts (EPS, revenue) and upload CSVs directly to S3 using pandas' S3 support.
     """
-    form_dir = form.lower().replace("-", "")  # "10-K" -> "10k", "10-Q" -> "10q"
+    form_dir = form.lower().replace("-", "")
     company = Company(ticker)
     reports = company.get_filings(filing_date=filing_date, form=[form])
 
     for report in reports:
         xbrl = XBRL.from_filing(report)
         filing_date_str = report.filing_date  # e.g. '2023-09-30'
-        
+
         for concept, subdir in [
             ("EarningsPerShareBasic", "basic_eps"),
             ("EarningsPerShareDiluted", "diluted_eps"),
@@ -112,18 +100,13 @@ def extract_financial_facts(ticker, form="10-K", base_dir=f"{os.getcwd()}/data",
                 if df is None or df.empty:
                     print(f"No facts found for {concept} in {ticker} {filing_date_str}")
                     continue
-                out_dir = os.path.join(
-                    base_dir, ticker, form_dir, subdir
-                )
-                os.makedirs(out_dir, exist_ok=True)
-                out_path = os.path.join(
-                    out_dir, f"{filing_date_str}.csv"
-                )
-                df.to_csv(out_path, index=False)
-                print(f"Saved: {out_path}")
+
+                s3_path = f"{base_s3_dir}/{ticker}/{form_dir}/{subdir}/{filing_date_str}.csv"
+                df.to_csv(s3_path, index=False)
+                print(f"Saved to {s3_path}")
+
             except Exception as e:
                 print(f"Skipping {concept} for {ticker} {filing_date_str}: {e}")
-
 
 
 
@@ -139,7 +122,7 @@ def get_tickers():
 
 
 @task
-def get_filing_data(base_dir: str = f"{os.getcwd()}/data"):
+def get_filing_date(base_dir: str = f"{os.getcwd()}"):
     """
     This task is used to get the filing date based on the most recent DAG run.
     It reads the extraction log file to determine the filing date range for extraction.
@@ -201,10 +184,10 @@ def extract_financial_data(filing_data_info, tickers):
     try:
         # Extract financial data for all tickers
         for ticker in tickers:
-            extract_financial_statements(ticker, form="10-K", base_dir=base_dir, filing_date=filing_data_info["filing_date_range"])
-            extract_financial_facts(ticker, form="10-K", base_dir=base_dir, filing_date=filing_data_info["filing_date_range"])
-            extract_financial_statements(ticker, form="10-Q", base_dir=base_dir, filing_date=filing_data_info["filing_date_range"])
-            extract_financial_facts(ticker, form="10-Q", base_dir=base_dir, filing_date=filing_data_info["filing_date_range"])
+            extract_financial_statements(ticker, form="10-K", filing_date=filing_data_info["filing_date_range"])
+            extract_financial_facts(ticker, form="10-K", filing_date=filing_data_info["filing_date_range"])
+            extract_financial_statements(ticker, form="10-Q", filing_date=filing_data_info["filing_date_range"])
+            extract_financial_facts(ticker, form="10-Q", filing_date=filing_data_info["filing_date_range"])
         
         # Update extraction log after successful extraction
         log_file_path = os.path.join(base_dir, "extraction_log.json")
@@ -244,7 +227,7 @@ def extract_financial_data(filing_data_info, tickers):
 )
 def financial_data_extraction():
     tickers = get_tickers()
-    filing_data_info = get_filing_data()
-    extract_financial_data(filing_data_info, ['AAPL']);
+    filing_date_info = get_filing_date()
+    extract_financial_data(filing_data_info, tickers);
     
 financial_data_extraction()

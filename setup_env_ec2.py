@@ -28,7 +28,6 @@ def setup_environment():
     # Set environment variables with fallbacks to .env values
     os.environ['AIRFLOW_HOME'] = os.getenv('AIRFLOW_HOME', os.path.join(current_dir, 'airflow'))
     os.environ['AIRFLOW__CORE__DAGS_FOLDER'] = os.getenv('AIRFLOW__CORE__DAGS_FOLDER', os.path.join(current_dir, 'dags'))
-    os.environ['OUTPUT_DATA_DIR'] = os.getenv('OUTPUT_DATA_DIR', os.path.join(current_dir, 'data'))
     os.environ['AIRFLOW__EMAIL__FROM_EMAIL'] = os.getenv('AIRFLOW__EMAIL__FROM_EMAIL', "David Kuo <davidkuotwk@gmail.com>")
     
     print("Environment variables loaded from extraction.env file:")
@@ -36,14 +35,7 @@ def setup_environment():
     print(f"OUTPUT_DATA_DIR={os.environ['OUTPUT_DATA_DIR']}")
     print(f"AIRFLOW__EMAIL__FROM_EMAIL={os.environ['AIRFLOW__EMAIL__FROM_EMAIL']}")
 
-
-def create_data_directory(output_data_dir):
-    """Create the main data directory if it doesn't exist."""
-    if not os.path.exists(output_data_dir):
-        print(f"Creating data directory: {output_data_dir}")
-        os.makedirs(output_data_dir)
-    else:
-        print(f"Data directory already exists: {output_data_dir}")
+)
 
 
 def get_tickers(csv_path):
@@ -63,26 +55,18 @@ def get_tickers(csv_path):
         sys.exit(1)
 
 
-def create_ticker_directories(tickers, output_data_dir):
-    """Create directory structure for each ticker."""
-    print("Creating directory structure for all tickers...")
-    
-    # Directory structure for each form type
+def create_s3_prefix_structure_boto3(tickers, bucket_name):
+    s3 = boto3.client("s3")
     forms = ["10k", "10q"]
     subdirs = ["balance_sheet", "income_statement", "statement_of_equity", "revenue", "basic_eps", "diluted_eps"]
-    
+
     for ticker in tickers:
-        print(f"Processing ticker: {ticker}")
-        
-        # Create directories for each form type
         for form in forms:
             for subdir in subdirs:
-                path = os.path.join(output_data_dir, ticker, form, subdir)
-                if not os.path.exists(path):
-                    os.makedirs(path)
-    
-    return len(tickers)
-
+                key = f"{ticker}/{form}/{subdir}/.keep"
+                # Upload an empty object to simulate a folder
+                s3.put_object(Bucket=bucket_name, Key=key, Body=b'')
+                print(f"Created: s3://{bucket_name}/{key}")
 
 def main():
     """Main function to orchestrate the setup process."""
