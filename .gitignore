@@ -2,3 +2,6 @@
 data/ 
 airflow/
 venv/
+.pem
+.json
+__pacache__/
