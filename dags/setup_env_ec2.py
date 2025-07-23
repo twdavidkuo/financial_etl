@@ -11,33 +11,44 @@ This script sets up the environment for the Financial ETL pipeline by:
 
 import os
 import sys
+import boto3
 import pandas as pd
 from dotenv import load_dotenv
+from datetime import datetime
+from airflow.sdk import dag, task
+from airflow.models import Variable
 
-
+@task
 def setup_environment():
-    """Set up the Financial ETL environment by loading .env file."""
+    """Set up the Financial ETL environment by setting Airflow Variables."""
     print("Setting up Financial ETL environment...")
     
     # Load environment variables from extraction.env file
     load_dotenv('extraction.env')
     
-    # Get the current working directory
-    current_dir = os.getcwd()
+    # Set sec_identity as Airflow Variable
+    sec_identity = os.getenv('sec_identity', "David Kuo <davidkuotwk@gmail.com>")
     
-    # Set environment variables with fallbacks to .env values
-    os.environ['AIRFLOW_HOME'] = os.getenv('AIRFLOW_HOME', os.path.join(current_dir, 'airflow'))
-    os.environ['AIRFLOW__CORE__DAGS_FOLDER'] = os.getenv('AIRFLOW__CORE__DAGS_FOLDER', os.path.join(current_dir, 'dags'))
-    os.environ['AIRFLOW__EMAIL__FROM_EMAIL'] = os.getenv('AIRFLOW__EMAIL__FROM_EMAIL', "David Kuo <davidkuotwk@gmail.com>")
+    try:
+        # Set the Airflow Variable
+        Variable.set("sec_identity", sec_identity)
+        print(f"Successfully set Airflow Variable 'sec_identity': {sec_identity}")
+    except Exception as e:
+        print(f"Error setting Airflow Variable: {e}")
+        # If Variable.set fails, try to update existing variable
+        try:
+            existing_var = Variable.get("sec_identity")
+            if existing_var != sec_identity:
+                Variable.set("sec_identity", sec_identity)
+                print(f"Updated existing Airflow Variable 'sec_identity': {sec_identity}")
+            else:
+                print(f"Airflow Variable 'sec_identity' already set to: {sec_identity}")
+        except Exception as update_error:
+            print(f"Error updating Airflow Variable: {update_error}")
     
-    print("Environment variables loaded from extraction.env file:")
-    print(f"AIRFLOW__CORE__DAGS_FOLDER={os.environ['AIRFLOW__CORE__DAGS_FOLDER']}")
-    print(f"OUTPUT_DATA_DIR={os.environ['OUTPUT_DATA_DIR']}")
-    print(f"AIRFLOW__EMAIL__FROM_EMAIL={os.environ['AIRFLOW__EMAIL__FROM_EMAIL']}")
+    print("Environment setup completed.")
 
-)
-
-
+@task
 def get_tickers(csv_path):
     """Read S&P 500 companies from CSV file."""
     print("Reading S&P 500 companies from CSV...")
@@ -54,8 +65,8 @@ def get_tickers(csv_path):
         print(f"Error reading CSV: {e}")
         sys.exit(1)
 
-
-def create_s3_prefix_structure_boto3(tickers, bucket_name):
+@task
+def create_s3_dirs(tickers, bucket_name):
     s3 = boto3.client("s3")
     forms = ["10k", "10q"]
     subdirs = ["balance_sheet", "income_statement", "statement_of_equity", "revenue", "basic_eps", "diluted_eps"]
@@ -64,11 +75,23 @@ def create_s3_prefix_structure_boto3(tickers, bucket_name):
         for form in forms:
             for subdir in subdirs:
                 key = f"{ticker}/{form}/{subdir}/.keep"
-                # Upload an empty object to simulate a folder
-                s3.put_object(Bucket=bucket_name, Key=key, Body=b'')
-                print(f"Created: s3://{bucket_name}/{key}")
+                
+                # Check if object exists
+                response = s3.list_objects_v2(Bucket=bucket_name, Prefix=key)
+                if 'Contents' in response:
+                    print(f"Exists: s3://{bucket_name}/{key}")
+                else:
+                    s3.put_object(Bucket=bucket_name, Key=key, Body=b'')
+                    print(f"Created: s3://{bucket_name}/{key}")
 
-def main():
+@dag(
+    dag_id="setup_env_ec2",
+    schedule=None,
+    start_date=datetime.now(),
+    catchup=False,
+    tags=["setup_env_ec2"],
+)
+def setup_env_ec2():
     """Main function to orchestrate the setup process."""
     try:
         # Setup environment variables from extraction.env file
@@ -76,27 +99,19 @@ def main():
         
         # Get the current working directory
         current_dir = os.getcwd()
-        output_data_dir = os.environ['OUTPUT_DATA_DIR']
-        
-        # Create main data directory
-        create_data_directory(output_data_dir)
-        
+  
         # Read tickers from CSV
         csv_path = os.path.join(current_dir, 'sp500_companies.csv')
         tickers = get_tickers(csv_path)
         
         # Create ticker directories
-        total_tickers = create_ticker_directories(tickers, output_data_dir)
+        #create_s3_dirs(tickers, 'sec-etl-raw-data')
         
         print("Setup completed successfully!")
-        print(f"Total tickers processed: {total_tickers}")
         
     except Exception as e:
         print(f"Error during setup: {e}")
         sys.exit(1)
 
 
-if __name__ == "__main__":
-    main() 
-
-
+setup_env_ec2()

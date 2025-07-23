@@ -159,38 +159,38 @@ def get_filing_date(base_dir: str = f"{os.getcwd()}"):
 
 
 @task
-def extract_financial_data(filing_data_info, tickers):
+def extract_financial_data(filing_date_info, tickers):
     """
     This task is used to extract the financial data from the SEC's website.
     After successful extraction, it updates the extraction log with the current execution date.
     """
-    import os
     import re
     import json
+    import os
     from datetime import datetime
     from airflow.models import Variable
     
+    # Get sec_identity from Airflow Variables
     identity = Variable.get("sec_identity")
     if not identity:
-        raise ValueError("sec_identity environment variable is not set. Please set it with your identity (e.g., 'John Doe johndoe@example.com')")
+        raise ValueError("sec_identity Airflow Variable is not set. Please set it with your identity (e.g., 'John Doe johndoe@example.com')")
     
-    # Remove angle brackets from email format
+    # Remove angle brackets from email format if present
     identity = re.sub(r'<(.+?)>', r'\1', identity)
     
+    # Set identity for SEC API
     set_identity(identity)
-    
-    base_dir = f"{os.getcwd()}/data"
     
     try:
         # Extract financial data for all tickers
         for ticker in tickers:
-            extract_financial_statements(ticker, form="10-K", filing_date=filing_data_info["filing_date_range"])
-            extract_financial_facts(ticker, form="10-K", filing_date=filing_data_info["filing_date_range"])
-            extract_financial_statements(ticker, form="10-Q", filing_date=filing_data_info["filing_date_range"])
-            extract_financial_facts(ticker, form="10-Q", filing_date=filing_data_info["filing_date_range"])
+            extract_financial_statements(ticker, form="10-K", filing_date=filing_date_info["filing_date_range"])
+            extract_financial_facts(ticker, form="10-K", filing_date=filing_date_info["filing_date_range"])
+            extract_financial_statements(ticker, form="10-Q", filing_date=filing_date_info["filing_date_range"])
+            extract_financial_facts(ticker, form="10-Q", filing_date=filing_date_info["filing_date_range"])
         
         # Update extraction log after successful extraction
-        log_file_path = os.path.join(base_dir, "extraction_log.json")
+        log_file_path = os.path.join(os.getcwd(), "extraction_log.json")
         current_date = datetime.now().strftime("%Y-%m-%d")
         
         if os.path.exists(log_file_path):
@@ -228,6 +228,6 @@ def extract_financial_data(filing_data_info, tickers):
 def financial_data_extraction():
     tickers = get_tickers()
     filing_date_info = get_filing_date()
-    extract_financial_data(filing_data_info, tickers);
+    extract_financial_data(filing_date_info, tickers);
     
 financial_data_extraction()
