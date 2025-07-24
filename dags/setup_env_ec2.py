@@ -18,35 +18,6 @@ from datetime import datetime
 from airflow.sdk import dag, task
 from airflow.models import Variable
 
-@task
-def setup_environment():
-    """Set up the Financial ETL environment by setting Airflow Variables."""
-    print("Setting up Financial ETL environment...")
-    
-    # Load environment variables from extraction.env file
-    load_dotenv('extraction.env')
-    
-    # Set sec_identity as Airflow Variable
-    sec_identity = os.getenv('sec_identity', "David Kuo <davidkuotwk@gmail.com>")
-    
-    try:
-        # Set the Airflow Variable
-        Variable.set("sec_identity", sec_identity)
-        print(f"Successfully set Airflow Variable 'sec_identity': {sec_identity}")
-    except Exception as e:
-        print(f"Error setting Airflow Variable: {e}")
-        # If Variable.set fails, try to update existing variable
-        try:
-            existing_var = Variable.get("sec_identity")
-            if existing_var != sec_identity:
-                Variable.set("sec_identity", sec_identity)
-                print(f"Updated existing Airflow Variable 'sec_identity': {sec_identity}")
-            else:
-                print(f"Airflow Variable 'sec_identity' already set to: {sec_identity}")
-        except Exception as update_error:
-            print(f"Error updating Airflow Variable: {update_error}")
-    
-    print("Environment setup completed.")
 
 @task
 def get_tickers(csv_path):
@@ -94,9 +65,6 @@ def create_s3_dirs(tickers, bucket_name):
 def setup_env_ec2():
     """Main function to orchestrate the setup process."""
     try:
-        # Setup environment variables from extraction.env file
-        setup_environment()
-        
         # Get the current working directory
         current_dir = os.getcwd()
   
@@ -105,10 +73,8 @@ def setup_env_ec2():
         tickers = get_tickers(csv_path)
         
         # Create ticker directories
-        #create_s3_dirs(tickers, 'sec-etl-raw-data')
-        
+        create_s3_dirs(tickers, 'sec-etl-raw-data')
         print("Setup completed successfully!")
-        
     except Exception as e:
         print(f"Error during setup: {e}")
         sys.exit(1)
