@@ -168,7 +168,7 @@ def extract_financial_data(filing_date_info, tickers):
     import json
     import os
     from datetime import datetime
-    from airflow.models import Variable
+    from airflow.sdk import Variable
     
     # Get sec_identity from Airflow Variables
     identity = Variable.get("sec_identity")
