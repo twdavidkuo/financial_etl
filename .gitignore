@@ -5,3 +5,4 @@ venv/
 .pem
 .json
 __pacache__/
+.log
