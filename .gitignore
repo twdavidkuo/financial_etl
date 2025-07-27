@@ -3,5 +3,6 @@ data/
 airflow/
 venv/
 *.pem
+*.json
 __pycache__/
-extraction_log.json
+*.log
