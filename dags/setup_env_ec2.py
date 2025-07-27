@@ -53,7 +53,7 @@ def create_s3_dirs(tickers, bucket_name):
                     print(f"Exists: s3://{bucket_name}/{key}")
                 else:
                     s3.put_object(Bucket=bucket_name, Key=key, Body=b'')
-                    print(f"Created: s3://{bucket_name}/{key}")
+        print(f"Created: s3://{bucket_name}/{ticker}")
 
 @dag(
     dag_id="setup_env_ec2",

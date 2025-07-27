@@ -1,3 +1,0 @@
-{"timestamp":"2025-07-14T21:23:23.177589","level":"info","event":"Filling up the DagBag from /Users/kuot/Documents/Financial_ETL/venv/lib/python3.10/site-packages/airflow/example_dags/example_setup_teardown.py","logger":"airflow.models.dagbag.DagBag"}
-{"timestamp":"2025-07-14T21:23:53.553007","level":"info","event":"Filling up the DagBag from /Users/kuot/Documents/Financial_ETL/venv/lib/python3.10/site-packages/airflow/example_dags/example_setup_teardown.py","logger":"airflow.models.dagbag.DagBag"}
-{"timestamp":"2025-07-14T21:24:24.556157","level":"info","event":"Filling up the DagBag from /Users/kuot/Documents/Financial_ETL/venv/lib/python3.10/site-packages/airflow/example_dags/example_setup_teardown.py","logger":"airflow.models.dagbag.DagBag"}

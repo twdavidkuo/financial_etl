@@ -72,8 +72,7 @@ def extract_financial_statements(ticker, form="10-K", base_s3_dir="s3://sec-etl-
                 for kind, out_df in [("concept", concept_df), ("label", label_df)]:
                     s3_path = f"{base_s3_dir}/{ticker}/{form_dir}/{statement_name}/{filing_date_str}_{kind}.csv"
                     out_df.to_csv(s3_path, index=False)
-                    print(f"Saved to {s3_path}")
-
+                    #print(f"Saved to {s3_path}")
             except Exception as e:
                 print(f"Skipping {statement_name} for {ticker} {filing_date_str}: {e}")
 
@@ -103,8 +102,7 @@ def extract_financial_facts(ticker, form="10-K", base_s3_dir="s3://sec-etl-raw-d
 
                 s3_path = f"{base_s3_dir}/{ticker}/{form_dir}/{subdir}/{filing_date_str}.csv"
                 df.to_csv(s3_path, index=False)
-                print(f"Saved to {s3_path}")
-
+                #print(f"Saved to {s3_path}")   
             except Exception as e:
                 print(f"Skipping {concept} for {ticker} {filing_date_str}: {e}")
 
@@ -214,8 +212,7 @@ def extract_financial_data(filing_date_info, tickers):
         
     except Exception as e:
         print(f"Error during financial data extraction: {e}")
-        # Don't update the log file if extraction failed
-        raise
+
 
 
 @dag(

@@ -1,2 +1,0 @@
-{"timestamp":"2025-07-14T21:23:24.557136","level":"info","event":"Filling up the DagBag from /Users/kuot/Documents/Financial_ETL/dags/financial_etl_dag.py","logger":"airflow.models.dagbag.DagBag"}
-{"timestamp":"2025-07-14T21:23:58.544150","level":"info","event":"Filling up the DagBag from /Users/kuot/Documents/Financial_ETL/dags/financial_etl_dag.py","logger":"airflow.models.dagbag.DagBag"}
